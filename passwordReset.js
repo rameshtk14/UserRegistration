@@ -3,6 +3,8 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { db, initializeDatabase } = require('./db');
 
+
+
 //const transporter = nodemailer.createTransport({
 //     service: 'gmail', // Replace with your email service
 //     auth: {
@@ -143,7 +145,7 @@ class PasswordReset {
             });
         } catch (error) {
             console.error("Error:", error.message);
-            return res.status(500).json({ error: 'Internal server error' });
+            return res.status(500).json({ error: 'Internal server error *** *' });
         }
     }
 }

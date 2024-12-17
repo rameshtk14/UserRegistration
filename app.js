@@ -1,24 +1,27 @@
 const sqlite3 = require('sqlite3').verbose();
 //const db = new sqlite3.Database(':memory:');
-const db = new sqlite3.Database('./users.db'); // Saves to 'users.db'
+const { db,initializeDatabase } = require('./db');
+const PasswordReset = require('./passwordReset');
 
 
 // Initialize the table
-db.serialize(() => {
-    db.run(`
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT NOT NULL UNIQUE,
-            password TEXT NOT NULL,
-            type TEXT NOT NULL CHECK(type IN ('Admin', 'User')),
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    `);
-    // Create a default Admin user
-    const bcrypt = require('bcrypt');
-    const adminPassword = bcrypt.hashSync('admin123', 10); // hash the password
-    db.run(`INSERT INTO users (username, password, type) VALUES ('admin', ?, 'Admin')`, [adminPassword]);
-});
+// db.serialize(() => {
+//     db.run(`
+//         CREATE TABLE IF NOT EXISTS users (
+//             id INTEGER PRIMARY KEY AUTOINCREMENT,
+//             username TEXT NOT NULL UNIQUE,
+//             password TEXT NOT NULL,
+//             type TEXT NOT NULL CHECK(type IN ('Admin', 'User')),
+//             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+//             reset_token TEXT,
+//             reset_token_expiry DATETIME
+//         )
+//     `);
+//     // Create a default Admin user
+//     const bcrypt = require('bcrypt');
+//     const adminPassword = bcrypt.hashSync('admin123', 10); // hash the password
+//     db.run(`INSERT INTO users (username, password, type) VALUES ('admin', ?, 'Admin')`, [adminPassword]);
+// });
 const express = require('express');
 const bodyParser = require('body-parser');
 const bcrypt = require('bcrypt');
@@ -116,60 +119,27 @@ app.post('/users', authenticate, isAdmin, (req, res) => {
     );
 });
 
+// Forgot Password Route
+app.post('/forgot-password', (req, res) => {
+    const { username } = req.body;
+    PasswordReset.forgotPassword(username, res);  // Call the static method
+});
 
-// Function to initialize the database
-function initializeDatabase() {
-    // Create the users table if it doesn't exist
-    db.run(`
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE,
-            password TEXT,
-            type TEXT
-        )
-    `, (err) => {
-        if (err) {
-            console.error("Error creating users table:", err.message);
-            return;
-        }
-        console.log("Users table ensured.");
-    });
-
-    // Check if the admin user already exists
-    const adminUsername = 'admin';
-    const adminPassword = 'admin123'; // Default password for admin
-    const adminType = 'Admin';
-
-    db.get(`SELECT * FROM users WHERE username = ?`, [adminUsername], (err, row) => {
-        if (err) {
-            console.error("Error querying users table:", err.message);
-            return;
-        }
-
-        if (row) {
-            console.log("Admin user already exists:", row.username);
-        } else {
-            // Admin user doesn't exist, insert it
-            const hashedPassword = bcrypt.hashSync(adminPassword, 10);
-            db.run(
-                `INSERT INTO users (username, password, type) VALUES (?, ?, ?)`,
-                [adminUsername, hashedPassword, adminType],
-                (err) => {
-                    if (err) {
-                        console.error("Error inserting admin user:", err.message);
-                        return;
-                    }
-                    console.log("Admin user created successfully.");
-                }
-            );
-        }
-    });
-}
-
-
+// Reset Password Route
+app.post('/reset-password', (req, res) => {
+    const { token, newPassword } = req.body;
+    console.log("Received Token:", token); // Debugging
+    console.log("Received New Password:", newPassword); // Debugging
+    if (!token || !newPassword) {
+        return res.status(400).json({ error: "Token and newPassword are required" });
+    }
+    PasswordReset.resetPassword(token, newPassword, res);  // Call the static method
+});
 // Start Server
 const PORT = 3000;
+console.log("SinitializeDatabasetarting server...");
 initializeDatabase();
+console.log("Ended server...");
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
    
